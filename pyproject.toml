@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "mistral-hackathon-finetuning"
+version = "0.1.0"
+description = ""
+authors = ["Your Name <you@example.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+ipykernel = "^6.29.4"
+beautifulsoup4 = "^4.12.3"
+requests = "^2.32.3"
+pandas = "^2.2.2"
+python-dotenv = "^1.0.1"
+pyarrow = "^16.1.0"
+fastparquet = "^2024.5.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
