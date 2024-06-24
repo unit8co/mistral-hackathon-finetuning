@@ -26,13 +26,13 @@ from prompts import CASE_PLACEHOLDER, SUPPORTING_CONTENT_PLACEHOLDER
 
 class CompletionModel:
     def __init__(
-            self,
-            provider: Literal["mistral", "openai"],
-            api_key: str,
-            api_version: Optional[str],
-            endpoint: str,
-            model_deployment: str
-        ):
+        self,
+        provider: Literal["mistral", "openai"],
+        api_key: str,
+        api_version: Optional[str],
+        endpoint: str,
+        model_deployment: str,
+    ):
         """Class interfacing with the model deployments"""
         self.provider = provider
         self.model = model_deployment
@@ -41,7 +41,7 @@ class CompletionModel:
             self.client = MistralClient(
                 api_key=api_key,
             )
-            
+
         elif provider == "openai":
             self.client = AzureOpenAI(
                 api_version=api_version,
@@ -49,7 +49,9 @@ class CompletionModel:
                 azure_endpoint=endpoint,
             )
         else:
-            raise ValueError("Model provider was not recognized, must be either 'mistral' or 'openai'.")
+            raise ValueError(
+                "Model provider was not recognized, must be either 'mistral' or 'openai'."
+            )
 
     def call(
         self,
@@ -57,7 +59,7 @@ class CompletionModel:
         temperature: Optional[float],
     ) -> str:
         """Send request to LLM
-        
+
         Parameters:
         -----------
             messages: conversation with the LLM, can include system messages as well as the history
@@ -86,36 +88,37 @@ class CompletionModel:
         # TODO: might contain function call?
         answer = response.choices[0].message.content
         return answer if answer is not None else "Failed to complete"
-    
+
+
 class MistralEmbeddingFunction(EmbeddingFunction):
     def __init__(self, api_key: str, model_deployment: str):
         self.client = MistralClient(
-                api_key=api_key,
-            )
+            api_key=api_key,
+        )
         self.model = model_deployment
 
     def __call__(self, input: Documents) -> Embeddings:
         embeddings_batch_response = self.client.embeddings(
-            model=self.model,
-            input=input
+            model=self.model, input=input
         )
         # TODO: make sure that the order is preserved?!
         return [entry.embedding for entry in embeddings_batch_response.data]
+
 
 class EmbeddingModel:
     def __init__(self, model_deployment: str, api_key: str):
         """Use API calls to embed content"""
         self.embedding_fun = MistralEmbeddingFunction(
-                api_key=api_key,
-                model_deployment=model_deployment,
-            )
+            api_key=api_key,
+            model_deployment=model_deployment,
+        )
         self.batch_size = 10
 
     def embed(self, input: Documents):
         nb_batches = len(input) // self.batch_size
         if len(input) % self.batch_size != 0:
             nb_batches += 1
-        
+
         embeddings = []
         for batch_idx in range(nb_batches):
             idx_start = batch_idx * self.batch_size
@@ -124,14 +127,16 @@ class EmbeddingModel:
             embeddings += self.embedding_fun(batch)
         return embeddings
 
+
 class RAGModel:
-    def __init__(self, expert_name: str, config: Dict, force_collection_creation: bool = False):
+    def __init__(
+        self, expert_name: str, config: Dict, force_collection_creation: bool = False
+    ):
         """Model responsible for consuming the data to build a knowledge database"""
         self.config = config
         self.knowledge_folder = config["knowledge_folder"]
         self.prompt_system = config["prompt_system"]
         self.prompt_template = config["prompt_template"]
-
 
         # Slice document into smaller chunks
         self.splitter = RecursiveCharacterTextSplitter(
@@ -180,7 +185,7 @@ class RAGModel:
                 # TODO: pass parameters to the bs_kwargs argument to cleanup the html
                 loader = BSHTMLLoader(file_path)
                 docs += loader.load()
-        
+
         # Slice the documents into chunks
         # TODO: smarter chunking, based on the title/reference in the html files
         chunks = self.splitter.split_documents(docs)[:10]
@@ -226,16 +231,18 @@ class RAGModel:
         answer = self.completion_model.call(
             messages=[
                 {"role": "system", "content": self.prompt_system},
-                {"role": "user", "content": completion_query}
+                {"role": "user", "content": completion_query},
             ],
-            temperature=self.config["temperature"]
+            temperature=self.config["temperature"],
         )
         return {
             "answer": answer,
             "support_content": relevant_chunks_str,
         }
-    
-    def predict_from_dataset(self, dataset: List[Case], export_predictions: bool = True):
+
+    def predict_from_dataset(
+        self, dataset: List[Case], export_predictions: bool = True
+    ):
         # Generate prediction for all the cases in the dataset
         predictions = [self.predict(case=entry) for entry in dataset]
 
@@ -262,9 +269,13 @@ class RAGModel:
 
         # inject case description in the completion request
         if CASE_PLACEHOLDER in self.prompt_template:
-            completion_query = completion_query.replace(CASE_PLACEHOLDER, case_description)
+            completion_query = completion_query.replace(
+                CASE_PLACEHOLDER, case_description
+            )
         else:
-            raise ValueError("Could not find the query placeholder in the prompt template.")
+            raise ValueError(
+                "Could not find the query placeholder in the prompt template."
+            )
 
         # inject supporting content in completion request
         if SUPPORTING_CONTENT_PLACEHOLDER in self.prompt_template:
